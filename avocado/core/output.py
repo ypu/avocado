@@ -480,37 +480,37 @@ class View(object):
         """
         self._log_ui_info(term_support.partial_str(msg), skip_newline)
 
-    def _log_ui_header(self, msg):
+    def _log_ui_header(self, msg, skip_newline=False):
         """
         Log a header message.
 
         :param msg: Message to write.
         """
-        self._log_ui_info(term_support.header_str(msg))
+        self._log_ui_info(term_support.header_str(msg), skip_newline)
 
-    def _log_ui_minor(self, msg):
+    def _log_ui_minor(self, msg, skip_newline=False):
         """
         Log a minor message.
 
         :param msg: Message to write.
         """
-        self._log_ui_info(msg)
+        self._log_ui_info(msg, skip_newline)
 
-    def _log_ui_error(self, msg):
+    def _log_ui_error(self, msg, skip_newline=False):
         """
         Log an error message (useful for critical errors).
 
         :param msg: Message to write.
         """
-        self._log_ui_error_base(term_support.fail_header_str(msg))
+        self._log_ui_error_base(term_support.fail_header_str(msg), skip_newline)
 
-    def _log_ui_warning(self, msg):
+    def _log_ui_warning(self, msg, skip_newline=False):
         """
         Log a warning message (useful for warning messages).
 
         :param msg: Message to write.
         """
-        self._log_ui_info(term_support.warn_header_str(msg))
+        self._log_ui_info(term_support.warn_header_str(msg), skip_newline)
 
     def _log_ui_status_pass(self, t_elapsed):
         """
