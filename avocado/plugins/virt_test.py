@@ -230,6 +230,88 @@ LIBVIRT_REMOVE = "remove_guest.without_disk"
 
 class VirtTestJob(job.Job):
 
+    def bootstrap_tests(self, options):
+        """
+        Bootstrap process (download the appropriate JeOS file to data dir).
+
+        This function will check whether the JeOS is in the right location of the
+        data dir, if not, it will download it non interactively.
+
+        :param options: OptParse object with program command line options.
+        """
+        import time
+        from autotest.client import utils
+        from virttest import data_dir, arch, defaults, bootstrap
+        if options.type:
+            test_dir = data_dir.get_backend_dir(options.type)
+        elif options.config:
+            parent_config_dir = os.path.dirname(os.path.dirname(options.config))
+            parent_config_dir = os.path.dirname(parent_config_dir)
+            options.type = parent_config_dir
+            test_dir = os.path.abspath(parent_config_dir)
+
+        if options.type == 'qemu':
+            check_modules = arch.get_kvm_module_list()
+        else:
+            check_modules = None
+        online_docs_url = "https://github.com/autotest/virt-test/wiki"
+
+        kwargs = {'test_name': options.type,
+                  'test_dir': test_dir,
+                  'base_dir': data_dir.get_data_dir(),
+                  'default_userspace_paths': None,
+                  'check_modules': check_modules,
+                  'online_docs_url': online_docs_url,
+                  'selinux': options.selinux_setup,
+                  'restore_image': not(options.no_downloads or
+                                       options.keep_image),
+                  'interactive': False,
+                  'update_providers': options.update_providers,
+                  'guest_os': options.guest_os or defaults.DEFAULT_GUEST_OS}
+
+        # Tolerance we have without printing a message for the user to wait (3 s)
+        tolerance = 3
+        failed = False
+        wait_message_printed = False
+
+        bg = utils.InterruptedThread(bootstrap.bootstrap, kwargs=kwargs)
+        t_begin = time.time()
+        bg.start()
+
+        while bg.isAlive():
+            t_elapsed = time.time() - t_begin
+            if t_elapsed > tolerance and not wait_message_printed:
+                self.view.notify(event='minor', msg="Running setup. Please wait...")
+                wait_message_printed = True
+                # if bootstrap takes too long, we temporarily make stdout verbose
+                # again, so the user can see what's taking so long
+                sys.stdout.restore()
+            time.sleep(0.1)
+
+        # in case stdout was restored above, redirect it again
+        sys.stdout.redirect()
+
+        reason = None
+        try:
+            bg.join()
+        except Exception, e:
+            failed = True
+            reason = e
+
+        t_end = time.time()
+        t_elapsed = t_end - t_begin
+
+        self.view._log_ui_header(msg="SETUP      :  ", skip_newline=True)
+
+        if not failed:
+            self.view._log_ui_status_pass(t_elapsed)
+        else:
+            self.view._log_ui_status_fail(t_elapsed)
+            self.view._log_ui_error("Setup error: %s" % reason)
+            sys.exit(-1)
+
+        return True
+
     def _job_report(self, job_elapsed_time, n_tests, n_tests_skipped,
                     n_tests_failed):
         """
@@ -977,8 +1059,8 @@ class VirtTestApp(object):
             standalone_test.reset_logging()
             standalone_test.configure_console_logging(
                 loglevel=self.options.console_level)
-            standalone_test.bootstrap_tests(self.options)
             jb = VirtTestJob()
+            jb.bootstrap_tests(self.options)
             ok = jb.run(self.cartesian_parser, self.options)
 
         except KeyboardInterrupt:
