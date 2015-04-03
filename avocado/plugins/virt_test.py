@@ -92,7 +92,9 @@ def _handle_stdout(options):
     original sys.stdout stream.
     """
     if not options.verbose:
-        _silence_stderr()
+        # No need to silence stderr with the patched virt-test that outputs
+        # to stdout
+        #_silence_stderr()
         # Replace stdout with our proxy pointing to /dev/null
         sys.stdout = StreamProxy(filename="/dev/null", stream=sys.stdout)
     else:
