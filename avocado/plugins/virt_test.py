@@ -230,6 +230,249 @@ LIBVIRT_INSTALL = "unattended_install.import.import.default_install.aio_native"
 LIBVIRT_REMOVE = "remove_guest.without_disk"
 
 
+import Queue
+import imp
+from autotest.client.shared import error
+from virttest import utils_env, utils_params, data_dir, utils_misc, version, bootstrap, asset, funcatexit, env_process
+from avocado import test
+
+
+class VirtTest(test.Test):
+
+    """
+    Mininal test class used to run a virt test.
+    """
+
+    env_version = utils_env.get_env_version()
+
+    def __init__(self, params, options):
+        self.params = utils_params.Params(params)
+        self.bindir = data_dir.get_root_dir()
+        self.virtdir = os.path.join(self.bindir, 'shared')
+        self.builddir = os.path.join(self.bindir, 'backends', params.get("vm_type"))
+        self.srcdir = os.path.join(self.builddir, 'src')
+        if not os.path.isdir(self.srcdir):
+            os.makedirs(self.srcdir)
+
+        self.tmpdir = os.path.join(self.bindir, 'tmp')
+        if not os.path.isdir(self.tmpdir):
+            os.makedirs(self.tmpdir)
+
+        self.iteration = 0
+        if options.config:
+            self.tag = params.get("shortname")
+        else:
+            self.tag = params.get("_short_name_map_file")["subtests.cfg"]
+        self.debugdir = None
+        self.outputdir = None
+        self.resultsdir = None
+        self.logfile = None
+        self.file_handler = None
+        self.background_errors = Queue.Queue()
+
+    def set_debugdir(self, debugdir):
+        self.debugdir = os.path.join(debugdir, self.tag)
+        self.outputdir = self.debugdir
+        if not os.path.isdir(self.debugdir):
+            os.makedirs(self.debugdir)
+        self.resultsdir = os.path.join(self.debugdir, 'results')
+        if not os.path.isdir(self.resultsdir):
+            os.makedirs(self.resultsdir)
+        self.profdir = os.path.join(self.resultsdir, 'profiling')
+        if not os.path.isdir(self.profdir):
+            os.makedirs(self.profdir)
+        utils_misc.set_log_file_dir(self.debugdir)
+        self.logfile = os.path.join(self.debugdir, 'debug.log')
+
+    def write_test_keyval(self, d):
+        self.whiteboard = d
+
+    def start_file_logging(self):
+        self.file_handler = None
+
+    def stop_file_logging(self):
+        pass
+
+    def verify_background_errors(self):
+        """
+        Verify if there are any errors that happened on background threads.
+
+        :raise Exception: Any exception stored on the background_errors queue.
+        """
+        try:
+            exc = self.background_errors.get(block=False)
+        except Queue.Empty:
+            pass
+        else:
+            raise exc[1], None, exc[2]
+
+    def run_once(self):
+        params = self.params
+
+        # If a dependency test prior to this test has failed, let's fail
+        # it right away as TestNA.
+        if params.get("dependency_failed") == 'yes':
+            raise error.TestNAError("Test dependency failed")
+
+        # Report virt test version
+        logging.info(version.get_pretty_version_info())
+        # Report the parameters we've received and write them as keyvals
+        logging.info("Starting test %s", self.tag)
+        logging.debug("Test parameters:")
+        keys = params.keys()
+        keys.sort()
+        for key in keys:
+            logging.debug("    %s = %s", key, params[key])
+
+        # Warn of this special condition in related location in output & logs
+        if os.getuid() == 0 and params.get('nettype', 'user') == 'user':
+            logging.warning("")
+            logging.warning("Testing with nettype='user' while running "
+                            "as root may produce unexpected results!!!")
+            logging.warning("")
+
+        # Open the environment file
+        env_filename = os.path.join(
+            data_dir.get_backend_dir(params.get("vm_type")),
+            params.get("env", "env"))
+        env = utils_env.Env(env_filename, self.env_version)
+
+        test_passed = False
+        t_types = None
+        t_type = None
+
+        try:
+            try:
+                try:
+                    subtest_dirs = []
+
+                    other_subtests_dirs = params.get("other_tests_dirs", "")
+                    for d in other_subtests_dirs.split():
+                        d = os.path.join(*d.split("/"))
+                        subtestdir = os.path.join(self.bindir, d, "tests")
+                        if not os.path.isdir(subtestdir):
+                            raise error.TestError("Directory %s does not "
+                                                  "exist" % (subtestdir))
+                        subtest_dirs += data_dir.SubdirList(subtestdir,
+                                                            bootstrap.test_filter)
+
+                    provider = params.get("provider", None)
+
+                    if provider is None:
+                        # Verify if we have the correspondent source file for it
+                        for generic_subdir in asset.get_test_provider_subdirs('generic'):
+                            subtest_dirs += data_dir.SubdirList(generic_subdir,
+                                                                bootstrap.test_filter)
+
+                        for specific_subdir in asset.get_test_provider_subdirs(params.get("vm_type")):
+                            subtest_dirs += data_dir.SubdirList(specific_subdir,
+                                                                bootstrap.test_filter)
+                    else:
+                        provider_info = asset.get_test_provider_info(provider)
+                        for key in provider_info['backends']:
+                            subtest_dirs += data_dir.SubdirList(
+                                provider_info['backends'][key]['path'],
+                                bootstrap.test_filter)
+
+                    subtest_dir = None
+
+                    # Get the test routine corresponding to the specified
+                    # test type
+                    logging.debug("Searching for test modules that match "
+                                  "'type = %s' and 'provider = %s' "
+                                  "on this cartesian dict",
+                                  params.get("type"), params.get("provider", None))
+
+                    t_types = params.get("type").split()
+                    # Make sure we can load provider_lib in tests
+                    for s in subtest_dirs:
+                        if os.path.dirname(s) not in sys.path:
+                            sys.path.insert(0, os.path.dirname(s))
+
+                    test_modules = {}
+                    for t_type in t_types:
+                        for d in subtest_dirs:
+                            module_path = os.path.join(d, "%s.py" % t_type)
+                            if os.path.isfile(module_path):
+                                logging.debug("Found subtest module %s",
+                                              module_path)
+                                subtest_dir = d
+                                break
+                        if subtest_dir is None:
+                            msg = ("Could not find test file %s.py on test"
+                                   "dirs %s" % (t_type, subtest_dirs))
+                            raise error.TestError(msg)
+                        # Load the test module
+                        f, p, d = imp.find_module(t_type, [subtest_dir])
+                        test_modules[t_type] = imp.load_module(t_type, f, p, d)
+                        f.close()
+
+                    # Preprocess
+                    try:
+                        params = env_process.preprocess(self, params, env)
+                    finally:
+                        env.save()
+
+                    # Run the test function
+                    for t_type in t_types:
+                        test_module = test_modules[t_type]
+                        run_func = utils_misc.get_test_entrypoint_func(
+                            t_type, test_module)
+                        try:
+                            run_func(self, params, env)
+                            self.verify_background_errors()
+                        finally:
+                            env.save()
+                    test_passed = True
+                    error_message = funcatexit.run_exitfuncs(env, t_type)
+                    if error_message:
+                        raise error.TestWarn("funcatexit failed with: %s"
+                                             % error_message)
+
+                except Exception, e:
+                    if (t_type is not None):
+                        error_message = funcatexit.run_exitfuncs(env, t_type)
+                        if error_message:
+                            logging.error(error_message)
+                    try:
+                        env_process.postprocess_on_error(self, params, env)
+                    finally:
+                        env.save()
+                    raise
+
+            finally:
+                # Postprocess
+                try:
+                    try:
+                        env_process.postprocess(self, params, env)
+                    except Exception, e:
+                        if test_passed:
+                            raise
+                        logging.error("Exception raised during "
+                                      "postprocessing: %s", e)
+                finally:
+                    env.save()
+
+        except Exception, e:
+            if params.get("abort_on_error") != "yes":
+                raise
+            # Abort on error
+            logging.info("Aborting job (%s)", e)
+            if params.get("vm_type") == "qemu":
+                for vm in env.get_all_vms():
+                    if vm.is_dead():
+                        continue
+                    logging.info("VM '%s' is alive.", vm.name)
+                    for m in vm.monitors:
+                        logging.info("It has a %s monitor unix socket at: %s",
+                                     m.protocol, m.filename)
+                    logging.info("The command line used to start it was:\n%s",
+                                 vm.make_qemu_command())
+                raise error.JobError("Abort requested (%s)" % e)
+
+        return test_passed
+
+
 class VirtTestJob(job.Job):
 
     def bootstrap_tests(self, options):
@@ -472,7 +715,7 @@ class VirtTestJob(job.Job):
 
             pretty_index = "(%d/%d)" % (index, n_tests)
 
-            t = standalone_test.Test(dct, options)
+            t = VirtTest(dct, options)
             self.view._log_ui_info(msg="%s %s:  " % (pretty_index, t.tag),
                                    skip_newline=True)
 
