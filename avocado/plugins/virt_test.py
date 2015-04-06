@@ -249,7 +249,8 @@ class VirtTest(test.Test):
         self.params = utils_params.Params(params)
         self.bindir = data_dir.get_root_dir()
         self.virtdir = os.path.join(self.bindir, 'shared')
-        self.builddir = os.path.join(self.bindir, 'backends', params.get("vm_type"))
+        self.builddir = os.path.join(
+            self.bindir, 'backends', params.get("vm_type"))
         self.srcdir = os.path.join(self.builddir, 'src')
         if not os.path.isdir(self.srcdir):
             os.makedirs(self.srcdir)
@@ -359,13 +360,15 @@ class VirtTest(test.Test):
                     provider = params.get("provider", None)
 
                     if provider is None:
-                        # Verify if we have the correspondent source file for it
+                        # Verify if we have the correspondent source file for
+                        # it
                         for generic_subdir in asset.get_test_provider_subdirs('generic'):
                             subtest_dirs += data_dir.SubdirList(generic_subdir,
                                                                 bootstrap.test_filter)
 
                         for specific_subdir in asset.get_test_provider_subdirs(params.get("vm_type")):
-                            subtest_dirs += data_dir.SubdirList(specific_subdir,
+                            subtest_dirs += data_dir.SubdirList(
+                                specific_subdir,
                                                                 bootstrap.test_filter)
                     else:
                         provider_info = asset.get_test_provider_info(provider)
@@ -490,7 +493,8 @@ class VirtTestJob(job.Job):
         if options.type:
             test_dir = data_dir.get_backend_dir(options.type)
         elif options.config:
-            parent_config_dir = os.path.dirname(os.path.dirname(options.config))
+            parent_config_dir = os.path.dirname(
+                os.path.dirname(options.config))
             parent_config_dir = os.path.dirname(parent_config_dir)
             options.type = parent_config_dir
             test_dir = os.path.abspath(parent_config_dir)
@@ -514,7 +518,8 @@ class VirtTestJob(job.Job):
                   'update_providers': options.update_providers,
                   'guest_os': options.guest_os or defaults.DEFAULT_GUEST_OS}
 
-        # Tolerance we have without printing a message for the user to wait (3 s)
+        # Tolerance we have without printing a message for the user to wait (3
+        # s)
         tolerance = 3
         failed = False
         wait_message_printed = False
@@ -526,7 +531,8 @@ class VirtTestJob(job.Job):
         while bg.isAlive():
             t_elapsed = time.time() - t_begin
             if t_elapsed > tolerance and not wait_message_printed:
-                self.view.notify(event='minor', msg="Running setup. Please wait...")
+                self.view.notify(
+                    event='minor', msg="Running setup. Please wait...")
                 wait_message_printed = True
                 # if bootstrap takes too long, we temporarily make stdout verbose
                 # again, so the user can see what's taking so long
@@ -620,7 +626,8 @@ class VirtTestJob(job.Job):
         standalone_test.cleanup_env(parser, options)
         self._update_latest_link()
 
-        self.view.notify(event='message', msg='JOB ID     : %s' % self.unique_id)
+        self.view.notify(
+            event='message', msg='JOB ID     : %s' % self.unique_id)
         self.view.notify(event='message', msg="JOB LOG    : %s" % self.logfile)
 
         last_index = -1
@@ -631,7 +638,8 @@ class VirtTestJob(job.Job):
             if not options.keep_image_between_tests:
                 _TEST_LOGGER.debug("Creating first backup of guest image")
                 qemu_img = storage.QemuImg(d, data_dir.get_data_dir(), "image")
-                qemu_img.backup_image(d, data_dir.get_data_dir(), 'backup', True)
+                qemu_img.backup_image(
+                    d, data_dir.get_data_dir(), 'backup', True)
                 _TEST_LOGGER.debug("")
 
         for line in standalone_test.get_cartesian_parser_details(
@@ -930,7 +938,8 @@ class VirtTestApp(object):
                 # arch from qemu binary and run on all supported machine types
                 if self.options.arch is None and self.options.guest_os is None:
                     import virttest.defaults
-                    self.cartesian_parser.only_filter(virttest.defaults.DEFAULT_MACHINE_TYPE)
+                    self.cartesian_parser.only_filter(
+                        virttest.defaults.DEFAULT_MACHINE_TYPE)
             else:
                 self.cartesian_parser.only_filter(self.options.machine_type)
         else:
@@ -995,7 +1004,8 @@ class VirtTestApp(object):
             if self.options.qemu_sandbox == "off":
                 self.cartesian_parser.assign("qemu_sandbox", "off")
         else:
-            logging.info("Config provided, ignoring \"--sandbox <on|off>\" option")
+            logging.info(
+                "Config provided, ignoring \"--sandbox <on|off>\" option")
 
     def _process_malloc_perturb(self):
         self.cartesian_parser.assign("malloc_perturb",
@@ -1082,7 +1092,8 @@ class VirtTestApp(object):
                     self.cartesian_parser.only_filter(", ".join(tests))
                 elif self.options.dropin:
                     from virttest import data_dir
-                    dropin_tests = os.listdir(os.path.join(data_dir.get_root_dir(), "dropin"))
+                    dropin_tests = os.listdir(
+                        os.path.join(data_dir.get_root_dir(), "dropin"))
                     if len(dropin_tests) <= 1:
                         _restore_stdout()
                         print("No drop in tests detected, aborting. "
@@ -1193,17 +1204,20 @@ class VirtTestApp(object):
             online_docs_url = None
             interactive = True
             if self.options.type == "qemu":
-                default_userspace_paths = ["/usr/bin/qemu-kvm", "/usr/bin/qemu-img"]
+                default_userspace_paths = [
+                    "/usr/bin/qemu-kvm", "/usr/bin/qemu-img"]
                 check_modules = arch.get_kvm_module_list()
                 online_docs_url = "https://github.com/autotest/virt-test/wiki/GetStarted"
             elif self.options.type == "libvirt":
-                default_userspace_paths = ["/usr/bin/qemu-kvm", "/usr/bin/qemu-img"]
+                default_userspace_paths = [
+                    "/usr/bin/qemu-kvm", "/usr/bin/qemu-img"]
             elif self.options.type == "libguestfs":
                 default_userspace_paths = ["/usr/bin/libguestfs-test-tool"]
             elif self.options.type == "lvsb":
                 default_userspace_paths = ["/usr/bin/virt-sandbox"]
             elif self.options.type == "openvswitch":
-                default_userspace_paths = ["/usr/bin/qemu-kvm", "/usr/bin/qemu-img"]
+                default_userspace_paths = [
+                    "/usr/bin/qemu-kvm", "/usr/bin/qemu-img"]
                 check_modules = ["openvswitch"]
                 online_docs_url = "https://github.com/autotest/autotest/wiki/OpenVSwitch"
             elif self.options.type == "v2v":
@@ -1353,7 +1367,6 @@ class VirtTestRunner(plugin.Plugin):
 
     name = 'virt_test_runner'
     enabled = True
-    priority = 0
 
     def configure(self, parser):
         """
@@ -1361,9 +1374,10 @@ class VirtTestRunner(plugin.Plugin):
 
         :param parser: Main test runner parser.
         """
-        self.parser = parser.subcommands.add_parser(
-            'vt-run',
-            help='Run virt-test suite tests')
+        self.parser = parser
+        vt_compat_group = parser.runner.add_argument_group(
+            'Virt-Test compatibility layer options')
+
         from virttest import data_dir
         import virttest.defaults
 
@@ -1379,153 +1393,162 @@ class VirtTestRunner(plugin.Plugin):
         else:
             nettype_default = 'user'
 
-        debug = self.parser.add_argument_group(self, 'Debug Options')
-        debug.add_argument("-v", "--verbose", action="store_true",
-                           dest="verbose", help=("Exhibit test "
-                                                 "messages in the console "
-                                                 "(used for debugging)"))
-        debug.add_argument("--console-level", action="store",
-                           dest="console_level",
-                           default="debug",
-                           help=("Log level of test messages in the console. Only valid "
-                                 "with --verbose. "
-                                 "Supported levels: " +
-                                 ", ".join(SUPPORTED_LOG_LEVELS) +
-                                 ". Default: "))
-        debug.add_argument("--show-open-fd", action="store_true",
-                           dest="show_open_fd", help=("Show how many "
-                                                      "open fds at the end of "
-                                                      "each test "
-                                                      "(used for debugging)"))
+        vt_compat_group.add_argument("-v", "--verbose", action="store_true",
+                                     dest="verbose", help=("Exhibit test "
+                                                           "messages in the console "
+                                                           "(used for debugging)"))
+        vt_compat_group.add_argument("--console-level", action="store",
+                                     dest="console_level",
+                                     default="debug",
+                                     help=("Log level of test messages in the console. Only valid "
+                                           "with --verbose. "
+                                           "Supported levels: " +
+                                           ", ".join(SUPPORTED_LOG_LEVELS) +
+                                           ". Default: "))
+        vt_compat_group.add_argument("--show-open-fd", action="store_true",
+                                     dest="show_open_fd", help=("Show how many "
+                                                                "open fds at the end of "
+                                                                "each test "
+                                                                "(used for debugging)"))
 
-        general = self.parser.add_argument_group(self, 'General Options')
-        general.add_argument("-b", "--bootstrap", action="store_true",
-                             dest="bootstrap", help=("Perform test suite setup "
-                                                     "procedures, such as "
-                                                     "downloading JeOS and check "
-                                                     "required programs and "
-                                                     "libs. Requires -t to be set"))
-        general.add_argument("--update-config", action="store_true",
-                             default=False,
-                             dest="update_config", help=("Forces configuration "
-                                                         "updates (all manual "
-                                                         "config file editing "
-                                                         "will be lost). "
-                                                         "Requires -t to be set"))
-        general.add_argument("--update-providers", action="store_true",
-                             default=False,
-                             dest="update_providers", help=("Forces test "
-                                                            "providers to be "
-                                                            "updated (git repos "
-                                                            "will be pulled)"))
-        general.add_argument("-t", "--type", action="store", dest="type",
+        vt_compat_group.add_argument("-b", "--bootstrap", action="store_true",
+                                     dest="bootstrap", help=("Perform test suite setup "
+                                                             "procedures, such as "
+                                                             "downloading JeOS and check "
+                                                             "required programs and "
+                                                             "libs. Requires -t to be set"))
+        vt_compat_group.add_argument("--update-config", action="store_true",
+                                     default=False,
+                                     dest="update_config", help=("Forces configuration "
+                                                                 "updates (all manual "
+                                                                 "config file editing "
+                                                                 "will be lost). "
+                                                                 "Requires -t to be set"))
+        vt_compat_group.add_argument("--update-providers", action="store_true",
+                                     default=False,
+                                     dest="update_providers", help=("Forces test "
+                                                                    "providers to be "
+                                                                    "updated (git repos "
+                                                                    "will be pulled)"))
+        vt_compat_group.add_argument(
+            "-t", "--type", action="store", dest="type",
                              help="Choose test type (%s)" %
                              ", ".join(SUPPORTED_TEST_TYPES))
-        general.add_argument("--connect-uri", action="store", dest="uri",
+        vt_compat_group.add_argument(
+            "--connect-uri", action="store", dest="uri",
                              help="Choose test connect uri for libvirt (E.g: %s)" %
                              ", ".join(SUPPORTED_LIBVIRT_URIS))
-        general.add_argument("-c", "--config", action="store", dest="config",
+        vt_compat_group.add_argument(
+            "-c", "--config", action="store", dest="config",
                              help=("Explicitly choose a cartesian config. "
                                    "When choosing this, some options will be "
                                    "ignored"))
-        general.add_argument("--no-downloads", action="store_true",
-                             dest="no_downloads", default=False,
-                             help="Do not attempt to download JeOS images")
-        general.add_argument("--selinux-setup", action="store_true",
-                             dest="selinux_setup", default=False,
-                             help="Define default contexts of directory.")
-        general.add_argument("-k", "--keep-image", action="store_true",
-                             dest="keep_image",
-                             help=("Don't restore the JeOS image from pristine "
-                                   "at the beginning of the test suite run "
-                                   "(faster but unsafe)"))
-        general.add_argument("--keep-image-between-tests",
-                             action="store_true", default=False,
-                             dest="keep_image_between_tests",
-                             help=("Don't restore the JeOS image from pristine "
-                                   "between tests (faster but unsafe)"))
-        general.add_argument("-g", "--guest-os", action="store", dest="guest_os",
+        vt_compat_group.add_argument("--no-downloads", action="store_true",
+                                     dest="no_downloads", default=False,
+                                     help="Do not attempt to download JeOS images")
+        vt_compat_group.add_argument("--selinux-setup", action="store_true",
+                                     dest="selinux_setup", default=False,
+                                     help="Define default contexts of directory.")
+        vt_compat_group.add_argument("-k", "--keep-image", action="store_true",
+                                     dest="keep_image",
+                                     help=("Don't restore the JeOS image from pristine "
+                                           "at the beginning of the test suite run "
+                                           "(faster but unsafe)"))
+        vt_compat_group.add_argument("--keep-image-between-tests",
+                                     action="store_true", default=False,
+                                     dest="keep_image_between_tests",
+                                     help=("Don't restore the JeOS image from pristine "
+                                           "between tests (faster but unsafe)"))
+        vt_compat_group.add_argument(
+            "-g", "--guest-os", action="store", dest="guest_os",
                              default=None,
                              help=("Select the guest OS to be used. "
                                    "If -c is provided, this will be ignored. "
                                    "Default: %s" % self.default_guest_os))
-        general.add_argument("--arch", action="store", dest="arch",
-                             default=None,
-                             help=("Architecture under test. "
-                                   "If -c is provided, this will be ignored. "
-                                   "Default: any that supports the given machine type"))
-        general.add_argument(
+        vt_compat_group.add_argument("--arch", action="store", dest="arch",
+                                     default=None,
+                                     help=("Architecture under test. "
+                                           "If -c is provided, this will be ignored. "
+                                           "Default: any that supports the given machine type"))
+        vt_compat_group.add_argument(
             "--machine-type", action="store", dest="machine_type",
             default=None,
             help=("Machine type under test. "
                   "If -c is provided, this will be ignored. "
                   "Default: all for the chosen guests, %s if "
                   "--guest-os not given." % virttest.defaults.DEFAULT_MACHINE_TYPE))
-        general.add_argument("--tests", action="store", dest="tests",
-                             default="",
-                             help=('List of space separated tests to be '
-                                   'executed. '
-                                   'If -c is provided, this will be ignored.'
-                                   ' - example: --tests "boot reboot shutdown"'))
-        general.add_argument("--list-tests", action="store_true", dest="list",
+        vt_compat_group.add_argument("--tests", action="store", dest="tests",
+                                     default="",
+                                     help=('List of space separated tests to be '
+                                           'executed. '
+                                           'If -c is provided, this will be ignored.'
+                                           ' - example: --tests "boot reboot shutdown"'))
+        vt_compat_group.add_argument(
+            "--list-tests", action="store_true", dest="list",
                              help="List tests available")
-        general.add_argument("--list-guests", action="store_true",
-                             dest="list_guests",
-                             help="List guests available")
-        general.add_argument("--logs-dir", action="store", dest="logdir",
+        vt_compat_group.add_argument("--list-guests", action="store_true",
+                                     dest="list_guests",
+                                     help="List guests available")
+        vt_compat_group.add_argument(
+            "--logs-dir", action="store", dest="logdir",
                              help=("Path to the logs directory. "
                                    "Default path: %s" %
-                                   os.path.join(data_dir.get_backing_data_dir(),
+                                   os.path.join(
+                                       data_dir.get_backing_data_dir(),
                                                 'logs')))
-        general.add_argument("--data-dir", action="store", dest="datadir",
+        vt_compat_group.add_argument(
+            "--data-dir", action="store", dest="datadir",
                              help=("Path to a data dir. "
                                    "Default path: %s" %
                                    data_dir.get_backing_data_dir()))
-        general.add_argument("--keep-guest-running", action="store_true",
+        vt_compat_group.add_argument(
+            "--keep-guest-running", action="store_true",
                              dest="keep_guest_running", default=False,
                              help=("Don't shut down guests at the end of each "
                                    "test (faster but unsafe)"))
-        general.add_argument("-m", "--mem", action="store", dest="mem",
-                             default="1024",
-                             help=("RAM dedicated to the main VM. Default:"
-                                   ""))
-        general.add_argument(
+        vt_compat_group.add_argument("--mem", action="store", dest="mem",
+                                     default="1024",
+                                     help=("RAM dedicated to the main VM. Default:"
+                                           ""))
+        vt_compat_group.add_argument(
             "--no", action="store", dest="no_filter", default="",
             help=("List of space separated no filters to be "
                   "passed to the config parser. If -c is "
                   "provided, this will be ignored"))
-        general.add_argument("--type-specific", action="store_true",
-                             dest="only_type_specific", default=False,
-                             help=("Enable only type specific tests. Shared"
-                                   " tests will not be tested."))
+        vt_compat_group.add_argument("--type-specific", action="store_true",
+                                     dest="only_type_specific", default=False,
+                                     help=("Enable only type specific tests. Shared"
+                                           " tests will not be tested."))
 
-        general.add_argument("--run-dropin", action="store_true", dest="dropin",
+        vt_compat_group.add_argument(
+            "--run-dropin", action="store_true", dest="dropin",
                              default=False,
                              help=("Run tests present on the drop in dir on the "
                                    "host. Incompatible with --tests."))
 
-        general.add_argument("--log-level", action="store", dest="log_level",
+        vt_compat_group.add_argument(
+            "--log-level", action="store", dest="log_level",
                              default="debug",
                              help=("Set log level for top level log file."
                                    " Supported levels: " +
                                    ", ".join(SUPPORTED_LOG_LEVELS) +
                                    ". Default: "))
 
-        general.add_argument("--no-cleanup", action="store_true",
-                             dest="no_cleanup",
-                             default=False,
-                             help=("Don't clean up tmp files or VM processes at "
-                                   "the end of a virt-test execution (useful "
-                                   "for debugging)"))
+        vt_compat_group.add_argument("--no-cleanup", action="store_true",
+                                     dest="no_cleanup",
+                                     default=False,
+                                     help=("Don't clean up tmp files or VM processes at "
+                                           "the end of a virt-test execution (useful "
+                                           "for debugging)"))
 
-        qemu = self.parser.add_argument_group(self, 'Options specific to the qemu test')
-        qemu.add_argument("--qemu-bin", action="store", dest="qemu",
-                          default=None,
-                          help=("Path to a custom qemu binary to be tested. "
-                                "If -c is provided and this flag is omitted, "
-                                "no attempt to set the qemu binaries will be made. "
-                                "Default path: %s" % qemu_bin_path))
-        qemu.add_argument("--qemu-dst-bin", action="store", dest="dst_qemu",
+        vt_compat_group.add_argument("--qemu-bin", action="store", dest="qemu",
+                                     default=None,
+                                     help=("Path to a custom qemu binary to be tested. "
+                                           "If -c is provided and this flag is omitted, "
+                                           "no attempt to set the qemu binaries will be made. "
+                                           "Default path: %s" % qemu_bin_path))
+        vt_compat_group.add_argument(
+            "--qemu-dst-bin", action="store", dest="dst_qemu",
                           default=None,
                           help=("Path to a custom qemu binary to be tested for "
                                 "the destination of a migration, overrides "
@@ -1533,71 +1556,79 @@ class VirtTestRunner(plugin.Plugin):
                                 "If -c is provided and this flag is omitted, "
                                 "no attempt to set the qemu binaries will be made. "
                                 "Default path: %s" % qemu_bin_path))
-        qemu.add_argument("--use-malloc-perturb", action="store",
-                          dest="malloc_perturb", default="yes",
-                          help=("Use MALLOC_PERTURB_ env variable set to 1 "
-                                "to help catch memory allocation problems on "
-                                "qemu (yes or no). Default: "))
-        qemu.add_argument("--accel", action="store", dest="accel", default="kvm",
+        vt_compat_group.add_argument("--use-malloc-perturb", action="store",
+                                     dest="malloc_perturb", default="yes",
+                                     help=("Use MALLOC_PERTURB_ env variable set to 1 "
+                                           "to help catch memory allocation problems on "
+                                           "qemu (yes or no). Default: "))
+        vt_compat_group.add_argument(
+            "--accel", action="store", dest="accel", default="kvm",
                           help=("Accelerator used to run qemu (kvm or tcg). "
                                 "Default: kvm"))
-        help_msg = "QEMU network option (%s). " % ", ".join(SUPPORTED_NET_TYPES)
+        help_msg = "QEMU network option (%s). " % ", ".join(
+            SUPPORTED_NET_TYPES)
         help_msg += "Default: "
-        qemu.add_argument("--nettype", action="store", dest="nettype",
+        vt_compat_group.add_argument(
+            "--nettype", action="store", dest="nettype",
                           default=nettype_default, help=help_msg)
-        qemu.add_argument("--netdst", action="store", dest="netdst",
-                          default="virbr0",
-                          help=("Bridge name to be used "
-                                "(if you chose bridge as nettype). "
-                                "Default: "))
-        qemu.add_argument("--vhost", action="store", dest="vhost",
-                          default="off",
-                          help=("Whether to enable vhost for qemu "
-                                "(on/off/force). Depends on nettype=bridge. "
-                                "If -c is provided, this will be ignored. "
-                                "Default: "))
-        qemu.add_argument("--monitor", action="store", dest="monitor",
+        vt_compat_group.add_argument("--netdst", action="store", dest="netdst",
+                                     default="virbr0",
+                                     help=("Bridge name to be used "
+                                           "(if you chose bridge as nettype). "
+                                           "Default: "))
+        vt_compat_group.add_argument("--vhost", action="store", dest="vhost",
+                                     default="off",
+                                     help=("Whether to enable vhost for qemu "
+                                           "(on/off/force). Depends on nettype=bridge. "
+                                           "If -c is provided, this will be ignored. "
+                                           "Default: "))
+        vt_compat_group.add_argument(
+            "--monitor", action="store", dest="monitor",
                           default='human',
                           help="Monitor type (human or qmp). Default: ")
-        qemu.add_argument("--smp", action="store", dest="smp",
-                          default='2',
-                          help=("Number of virtual cpus to use. "
-                                "If -c is provided, this will be ignored. "
-                                "Default: "))
-        qemu.add_argument("--image-type", action="store", dest="image_type",
+        vt_compat_group.add_argument("--smp", action="store", dest="smp",
+                                     default='2',
+                                     help=("Number of virtual cpus to use. "
+                                           "If -c is provided, this will be ignored. "
+                                           "Default: "))
+        vt_compat_group.add_argument(
+            "--image-type", action="store", dest="image_type",
                           default="qcow2",
                           help=("Image format type to use "
                                 "(any valid qemu format). "
                                 "If -c is provided, this will be ignored. "
                                 "Default: "))
-        qemu.add_argument("--nic-model", action="store", dest="nic_model",
+        vt_compat_group.add_argument(
+            "--nic-model", action="store", dest="nic_model",
                           default="virtio_net",
                           help=("Guest network card model. "
                                 "If -c is provided, this will be ignored. "
                                 "(any valid qemu format). Default: "))
-        qemu.add_argument("--disk-bus", action="store", dest="disk_bus",
+        vt_compat_group.add_argument(
+            "--disk-bus", action="store", dest="disk_bus",
                           default="virtio_blk",
                           help=("Guest main image disk bus. One of " +
                                 " ".join(SUPPORTED_DISK_BUSES) +
                                 ". If -c is provided, this will be ignored. "
                                 "Default: "))
-        qemu.add_argument("--qemu_sandbox", action="store", dest="qemu_sandbox",
+        vt_compat_group.add_argument(
+            "--qemu_sandbox", action="store", dest="qemu_sandbox",
                           default="on",
                           help=("Enable qemu sandboxing "
                                 "(on/off). Default: "))
 
-        libvirt = self.parser.add_argument_group(self, 'Options specific to the libvirt test')
-        libvirt.add_argument("--install", action="store_true",
-                             dest="install_guest",
-                             help=("Install the guest using import method before "
-                                   "the tests are run."))
-        libvirt.add_argument("--remove", action="store_true", dest="remove_guest",
+        vt_compat_group.add_argument("--install", action="store_true",
+                                     dest="install_guest",
+                                     help=("Install the guest using import method before "
+                                           "the tests are run."))
+        vt_compat_group.add_argument(
+            "--remove", action="store_true", dest="remove_guest",
                              help=("Remove the guest from libvirt. This will not "
                                    "delete the guest's disk file."))
 
-        super(VirtTestRunner, self).configure(self.parser)
+        self.configured = True
 
-    def run(self, args):
+    def activate(self, args):
         """
         Run test modules or simple tests.
 
